@@ -1,0 +1,123 @@
+<!doctype html><html lang="th"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>สมัครงาน | NationNest Property</title>
+<link rel="stylesheet" href="assets/style.css"/>
+</head><body class="theme-luxury">
+<nav class="nav">
+  <div class="container nav-inner">
+    <div class="brand"><img src="assets/logo.svg"/><strong>NationNest Property</strong></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <a class="btn ghost" href="index.html">หน้าแรก</a>
+      <a class="btn ghost" href="listings.html">รายการทรัพย์</a>
+      <a class="btn ghost" href="calculators.html">คำนวณเงิน</a>
+      <a class="btn primary" href="about.html">เกี่ยวกับเรา</a>
+    </div>
+  </div>
+</nav>
+
+<section class="section"><div class="container">
+  <div class="kicker">ร่วมทีมของเรา</div>
+  <h1 class="h1">สมัครงาน</h1>
+  <form class="glass" onsubmit="save(event)">
+    <div class="controls">
+      <input id="name" placeholder="ชื่อ-สกุล" required/>
+      <input id="email" type="email" placeholder="อีเมล" required/>
+      <input id="phone" placeholder="เบอร์โทร" required/>
+      <input id="position" placeholder="ตำแหน่งที่สนใจ (เช่น Sales/Agent/Marketing)" required/>
+      <input id="province" placeholder="จังหวัดที่สะดวกทำงาน"/>
+      <input id="portfolio" placeholder="ลิงก์ผลงาน/โปรไฟล์ (ถ้ามี)"/>
+      <input id="resume" type="file" accept=".pdf,.doc,.docx,.png,.jpg"/>
+    </div>
+    <textarea id="about" placeholder="แนะนำตัว/ประสบการณ์โดยย่อ"></textarea>
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <button class="btn primary" type="submit">ส่งใบสมัคร (เก็บในเครื่อง)</button>
+      <button class="btn ghost" type="button" onclick="exportCSV()">ส่งออก CSV</button>
+      <button class="btn ghost" type="button" onclick="exportJSON()">ส่งออก JSON</button>
+    </div>
+    <div class="notice">* ระบบนี้เป็นเดโม่แบบไม่ใช้เซิร์ฟเวอร์ — เก็บข้อมูลไว้ในเครื่อง (LocalStorage) คุณสามารถ Export ไฟล์แล้วส่งต่อให้ HR ได้</div>
+  </form>
+
+  <div class="glass" style="margin-top:16px">
+    <h3>ใบสมัครทั้งหมด</h3>
+    <table class="table"><thead><tr>
+      <th>ชื่อ</th><th>อีเมล</th><th>ตำแหน่ง</th><th>จังหวัด</th><th>จัดการ</th>
+    </tr></thead><tbody id="rows"></tbody></table>
+  </div>
+</div></section>
+
+<footer class="footer"><div class="container">© 2025 NationNest Property</div></footer>
+
+<script>
+const $=id=>document.getElementById(id);
+function load(){ return JSON.parse(localStorage.getItem('NN_APPLICANTS')||'[]'); }
+function saveList(v){ localStorage.setItem('NN_APPLICANTS', JSON.stringify(v)); }
+function save(e){
+  e.preventDefault();
+  const list = load();
+  const file = $('resume').files[0];
+  const entry = {
+    id: Date.now().toString(36),
+    name: $('name').value.trim(),
+    email: $('email').value.trim(),
+    phone: $('phone').value.trim(),
+    position: $('position').value.trim(),
+    province: $('province').value.trim(),
+    portfolio: $('portfolio').value.trim(),
+    about: $('about').value.trim(),
+    resumeName: file? file.name: '',
+    resumeData: ''
+  };
+  if(file){
+    const rd = new FileReader();
+    rd.onload = ev => { entry.resumeData = ev.target.result; list.push(entry); saveList(list); render(); alert('บันทึกใบสมัครแล้ว (เฉพาะเครื่องนี้)'); };
+    rd.readAsDataURL(file);
+  }else{
+    list.push(entry); saveList(list); render(); alert('บันทึกใบสมัครแล้ว (ไม่มีไฟล์)');
+  }
+}
+function del(id){
+  if(!confirm('ลบรายการนี้?')) return;
+  const list = load().filter(x=>x.id!==id); saveList(list); render();
+}
+function downloadDataURL(dataURL, filename){
+  fetch(dataURL).then(r=>r.blob()).then(b=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=filename; a.click(); });
+}
+function render(){
+  const rows = $('rows'); rows.innerHTML='';
+  load().forEach(x=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${x.name}</td><td>${x.email}</td><td>${x.position}</td><td>${x.province}</td>
+      <td><button class="btn ghost" onclick="del('${x.id}')">ลบ</button> ${x.resumeData? `<button class="btn ghost" onclick="downloadDataURL('${x.resumeData}','${x.resumeName||'resume'}')">ดาวน์โหลดไฟล์</button>`:''}</td>`;
+    rows.appendChild(tr);
+  });
+}
+function exportCSV(){
+  const list = load();
+  const header = ['id','name','email','phone','position','province','portfolio','about','resumeName'];
+  const lines = [header.join(',')];
+  list.forEach(x=>{
+    const row = header.map(k => ('"'+String(x[k] or '').replace('"','""')+'"'));
+    lines.append(','.join(row))
+  })
+}
+</script>
+
+<script>
+function exportCSV(){
+  const list = JSON.parse(localStorage.getItem('NN_APPLICANTS')||'[]');
+  const header = ['id','name','email','phone','position','province','portfolio','about','resumeName'];
+  const rows = [header.join(',')];
+  list.forEach(x=>{
+    rows.push(header.map(k => ('"'+String(x[k] or '').replace(/"/g,'""')+'"')).join(','));
+  });
+  const blob = new Blob([rows.join('\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='applicants.csv'; a.click();
+}
+function exportJSON(){
+  const list = JSON.parse(localStorage.getItem('NN_APPLICANTS')||'[]');
+  const blob = new Blob([JSON.stringify(list,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='applicants.json'; a.click();
+}
+render();
+</script>
+<script src="assets/theme.js"></script></body></html>

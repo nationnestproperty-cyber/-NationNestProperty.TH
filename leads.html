@@ -1,0 +1,63 @@
+<!doctype html><html lang="th"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>ฝากข้อมูลลูกค้า | NationNest Property</title>
+<link rel="stylesheet" href="assets/style.css"/>
+</head><body class="theme-luxury">
+<nav class="nav">
+  <div class="container nav-inner">
+    <div class="brand"><img src="assets/logo.png"/><strong>NationNest Property</strong></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <a class="btn ghost" href="index.html">หน้าแรก</a>
+      <a class="btn ghost" href="listings.html">รายการทรัพย์</a>
+      <a class="btn ghost" href="calculators.html">คำนวณเงิน</a>
+      <a class="btn primary" href="about.html">เกี่ยวกับเรา</a>
+    </div>
+  </div>
+</nav>
+<section class="section"><div class="container">
+  <div class="kicker">ฝากข้อมูลเพื่อติดต่อกลับ</div>
+  <h1 class="h1">Leads Form</h1>
+  <div class="glass">
+    <form id="leadForm2">
+      <div class="controls">
+        <input id="name" placeholder="ชื่อ-สกุล" required/>
+        <input id="phone" placeholder="เบอร์โทร" required/>
+        <input id="email" type="email" placeholder="อีเมล (ถ้ามี)"/>
+        <input id="topic" placeholder="สนใจเรื่องอะไร (ซื้อ/ขาย/เช่า)"/>
+      </div>
+      <textarea id="message" placeholder="รายละเอียด"></textarea>
+      <div style="display:flex;gap:10px;margin-top:10px">
+        <button class="btn primary" type="submit">ส่งข้อมูล</button>
+        <div id="status" class="meta"></div>
+      </div>
+    </form>
+  </div>
+</div></section>
+<footer class="footer"><div class="container">© 2025 NationNest Property</div></footer>
+<script src="data/config.js"></script>
+<script>
+document.getElementById('leadForm2').addEventListener('submit', function(e){
+  e.preventDefault();
+  const cfg = window.CONFIG||{};
+  const payload = {
+    name: document.getElementById('name').value,
+    phone: document.getElementById('phone').value,
+    email: document.getElementById('email').value,
+    topic: document.getElementById('topic').value,
+    message: document.getElementById('message').value,
+    ts: new Date().toISOString()
+  };
+  const status = document.getElementById('status');
+  if(cfg.googleAppsScript){
+    fetch(cfg.googleAppsScript, {method:'POST', mode:'no-cors', body: JSON.stringify(payload)})
+      .then(()=>{ status.textContent='ส่งข้อมูลแล้ว ขอบคุณครับ'; (e.target).reset(); })
+      .catch(()=>{ status.textContent='ส่งไม่สำเร็จ โปรดลองอีกครั้ง'; });
+  }else{
+    const subj = encodeURIComponent('Lead จากเว็บไซต์ (ทั่วไป)');
+    const body = encodeURIComponent('ชื่อ: '+payload.name+'\nโทร: '+payload.phone+'\nอีเมล: '+payload.email+'\nหัวข้อ: '+payload.topic+'\nข้อความ: '+payload.message);
+    location.href = 'mailto:' + (cfg.contactEmail||'admin@nationnestproperty.com') + '?subject='+subj+'&body='+body;
+  }
+});
+</script>
+<script src="assets/theme.js"></script>
+</body></html>

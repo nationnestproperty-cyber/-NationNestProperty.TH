@@ -1,0 +1,91 @@
+<!doctype html><html lang="th"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>เปรียบเทียบทรัพย์ | NationNest</title>
+<link rel="stylesheet" href="assets/style.css"/>
+<style>
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{border:1px solid #e6e8ec;padding:10px;vertical-align:top}
+.table th{background:#f7fafc;text-align:left}
+</style>
+
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="เปรียบเทียบทรัพย์ | NationNest"/>
+<meta property="og:description" content="เปรียบเทียบทรัพย์ 2–4 รายการแบบเคียงข้างกัน"/>
+<meta property="og:image" content="https://nationnest-thailand.netlify.app/assets/img/owner.png"/>
+<meta property="og:url" content="https://nationnest-thailand.netlify.app/compare.html"/>
+<meta name="twitter:card" content="summary_large_image"/>
+
+<link rel="canonical" href="https://nationnest-thailand.netlify.app/compare.html"/>
+</head>
+<body class="theme-luxury">
+<nav class="nav"><div class="container nav-inner">
+  <div class="brand"><a href="index.html" style="text-decoration:none;color:inherit"><strong>NationNest</strong></a></div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <a class="btn ghost" href="listings.html">รายการทรัพย์</a>
+    <a class="btn ghost" href="map.html">แผนที่</a>
+    <a class="btn ghost" href="about.html">เกี่ยวกับเรา</a>
+  </div>
+</div></nav>
+<header class="hero"><div class="container"><h1>เปรียบเทียบทรัพย์</h1></div></header>
+<main class="section"><div class="container">
+  <div id="tableWrap"></div>
+</div></main>
+<footer class="footer"><div class="container">© 2025 NationNest Property</div></footer>
+<script src="data/listings.js"></script>
+<script src="data/listings_enhanced.js"></script>
+<script src="data/stations_full.js"></script>
+<script>
+function money(n){ if(!n) return '-'; try{return '฿ ' + Number(n).toLocaleString();}catch(e){return n} }
+function ppsm(x){ return (x.priceSale||x.price||0) && x.area ? ((x.priceSale||x.price)/x.area) : null; }
+function hav(a,b){const R=6371;const d=rad(b.lat-a.lat);const d2=rad(b.lng-a.lng); const la1=rad(a.lat),la2=rad(b.lat); const h=Math.sin(d/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(d2/2)**2; return 2*R*Math.asin(Math.sqrt(h)); function rad(x){return x*Math.PI/180;}}
+function nearestStation(x){
+  if(!(window.STATIONS||[]).length || !x.lat || !x.lng) return null;
+  let best=null, bestD=1e9;
+  (window.STATIONS||[]).forEach(s=>{
+    const d=hav({lat:x.lat,lng:x.lng},{lat:s.lat,lng:s.lng});
+    if(d<bestD){bestD=d; best=s;}
+  });
+  return best? {name:best.name, line:best.line, km:bestD.toFixed(2)} : null;
+}
+function loadCompare(){
+  const params = new URLSearchParams(location.search);
+  let idsParam = (params.get('ids')||'').split(',').filter(Boolean).map(x=>Number(x));
+  if(!idsParam.length){
+    try{ idsParam = JSON.parse(localStorage.getItem('compare')||'[]'); }catch(e){ idsParam=[]; }
+  }
+  const L = window.LISTINGS||[];
+  const items = idsParam.map(id=>L.find(x=>x.id===id)).filter(Boolean);
+  if(items.length<2){
+    document.getElementById('tableWrap').innerHTML = '<div class="glass">เลือกอย่างน้อย 2 รายการจากหน้ารายการเพื่อเปรียบเทียบ</div>';
+    return;
+  }
+  const cols = items.map(x=>`
+    <th style="width:${100/items.length}%">
+      <div style="padding:8px">
+        <a href="property.html#${x.id}" style="text-decoration:none;color:inherit">
+          <div style="padding-top:60%;background:#eee url('${(x.images&&x.images[0])||x.image||""}') center/cover;border-radius:8px"></div>
+          <div style="font-weight:800;margin-top:6px">${x.title||''}</div>
+        </a>
+        <div style="color:#64748b">${x.location||''} ${x.province? '• '+x.province:''}</div>
+      </div>
+    </th>`).join('');
+  const rows = [
+    ['สถานะ', ...items.map(x=>x.status||'-')],
+    ['ราคาขาย', ...items.map(x=> money(x.priceSale))],
+    ['ราคาเช่า', ...items.map(x=> money(x.priceRent))],
+    ['พื้นที่ (ตร.ม.)', ...items.map(x=> x.area||'-')],
+    ['ราคา/ตร.ม.', ...items.map(x=> ppsm(x)? money(Math.round(ppsm(x))) : '-')],
+    ['ชั้น/ชั้น', ...items.map(x=> x.floors||x.storeys||'-')],
+    ['ห้องนอน', ...items.map(x=> x.beds||0)],
+    ['ห้องน้ำ', ...items.map(x=> x.baths||0)],
+    ['สถานีใกล้สุด', ...items.map(x=>{const n=nearestStation(x); return n? (n.name+' • '+n.line+' • '+n.km+' กม.'):'-';})],
+  ];
+  const table = `<table class="table">
+    <thead><tr><th></th>${cols}</tr></thead>
+    <tbody>${rows.map(r=>`<tr><th>${r[0]}</th>${r.slice(1).map(v=>`<td>${v||'-'}</td>`).join('')}</tr>`).join('')}</tbody>
+  </table>`;
+  document.getElementById('tableWrap').innerHTML = table;
+}
+document.addEventListener('DOMContentLoaded', loadCompare);
+</script>
+</body></html>

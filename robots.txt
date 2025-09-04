@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://nationnest-thailand.netlify.app/sitemap.xml

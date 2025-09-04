@@ -1,0 +1,160 @@
+<!doctype html><html lang="th"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>ค้นหาบนแผนที่ | NationNest</title>
+<link rel="stylesheet" href="assets/style.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+<style>
+.map-wrap{display:grid;grid-template-columns:380px 1fr;gap:0;height:calc(100vh - 80px)}
+@media(max-width:900px){.map-wrap{grid-template-columns:1fr;grid-template-rows:320px 1fr;height:auto}}
+#map{width:100%;height:100%}
+.panel{border-right:1px solid #e6e8ec;background:#fff}
+.panel .tools{padding:10px;border-bottom:1px solid #e6e8ec;position:sticky;top:0;background:#fff;z-index:2}
+.panel .list{padding:10px;overflow:auto;height:calc(100% - 64px)}
+.card-mini{border:1px solid #e6e8ec;border-radius:12px;overflow:hidden;margin-bottom:10px;display:block;text-decoration:none;color:inherit}
+.card-mini .thumb{padding-top:52%;background:#eee center/cover}
+.card-mini .body{padding:8px}
+#searchArea{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:500;background:#fff;border:1px solid #e6e8ec;border-radius:999px;padding:6px 12px;box-shadow:0 6px 16px rgba(0,0,0,.12)}
+.leaflet-container .leaflet-control{box-shadow:none;border:none}
+</style>
+
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="ค้นหาบนแผนที่ | NationNest"/>
+<meta property="og:description" content="ค้นหาทรัพย์บนแผนที่ วาดพื้นที่ได้ เลือกเฉพาะราคาดี"/>
+<meta property="og:image" content="https://nationnest-thailand.netlify.app/assets/img/owner.png"/>
+<meta property="og:url" content="https://nationnest-thailand.netlify.app/map.html"/>
+<meta name="twitter:card" content="summary_large_image"/>
+
+<link rel="canonical" href="https://nationnest-thailand.netlify.app/map.html"/>
+</head>
+<body class="theme-luxury">
+<nav class="nav"><div class="container nav-inner">
+  <div class="brand"><a href="index.html" style="text-decoration:none;color:inherit"><strong>NationNest</strong></a></div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <a class="btn ghost" href="listings.html">รายการทรัพย์</a>
+    <a class="btn ghost" href="about.html">เกี่ยวกับเรา</a>
+    <a class="btn primary" href="account.html" data-auth="account">บัญชีของฉัน</a>
+    <a class="btn ghost" href="#" data-auth="login" onclick="AuthUX.showAuth();return false;">เข้าสู่ระบบ</a>
+  </div>
+</div></nav>
+<div class="map-wrap">
+  <aside class="panel">
+    <div class="tools">
+      <input id="q" placeholder="ค้นหา (ทำเล/ชื่อโครงการ)" style="width:100%;padding:10px"/>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <select id="province" style="flex:1;padding:10px"></select>
+        <select id="type" style="flex:1;padding:10px"></select>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <label><input type="checkbox" id="goodDeal"/> เฉพาะราคาดี</label>
+        <button class="btn" id="resetDraw" style="margin-left:auto">ล้างพื้นที่</button>
+      </div>
+    </div>
+    <div class="list" id="list"></div>
+  </aside>
+  <main style="position:relative">
+    <div id="map"></div>
+    <button id="searchArea" class="btn">ค้นหาในขอบเขตแผนที่นี้</button>
+  </main>
+</div>
+<footer class="footer"><div class="container">© 2025 NationNest Property</div></footer>
+<script src="assets/auth.js"></script>
+<script src="data/listings.js"></script>
+<script src="data/listings_enhanced.js"></script>
+<script src="data/stations_full.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script>
+let map, markers=[], drawnLayer=null;
+function insidePoly(pt, poly){
+  // Ray casting
+  const x=pt[1], y=pt[0];
+  let inside=false;
+  for(let i=0, j=poly.length-1; i<poly.length; j=i++){
+    const xi=poly[i][1], yi=poly[i][0], xj=poly[j][1], yj=poly[j][0];
+    const intersect = ((yi>y)!=(yj>y)) && (x < (xj-xi)*(y-yi)/(yj-yi+1e-9)+xi);
+    if(intersect) inside = !inside;
+  }
+  return inside;
+}
+function filters(){
+  return {
+    q: document.getElementById('q').value.trim(),
+    prov: document.getElementById('province').value,
+    type: document.getElementById('type').value,
+    good: document.getElementById('goodDeal').checked
+  };
+}
+function populateSelects(L){
+  const provSel = document.getElementById('province'); provSel.innerHTML = '<option value="">ทุกจังหวัด</option>';
+  [...new Set(L.map(x=>x.province).filter(Boolean))].sort().forEach(p=>{
+    const o=document.createElement('option'); o.value=p; o.textContent=p; provSel.appendChild(o);
+  });
+  const typeSel = document.getElementById('type'); typeSel.innerHTML = '<option value="">ทุกประเภท</option>';
+  [...new Set(L.map(x=>x.type).filter(Boolean))].sort().forEach(p=>{
+    const o=document.createElement('option'); o.value=p; o.textContent=p; typeSel.appendChild(o);
+  });
+}
+function apply(){
+  const L = window.LISTINGS||[];
+  const f = filters();
+  let list = L.filter(x=>x.lat&&x.lng);
+  if(f.q){ const s=f.q.toLowerCase(); list=list.filter(x=>(x.title||'').toLowerCase().includes(s)||(x.location||'').toLowerCase().includes(s)); }
+  if(f.prov) list = list.filter(x=>x.province===f.prov);
+  if(f.type) list = list.filter(x=>x.type===f.type);
+  if(f.good && window.GOOD_DEAL){
+    list = list.filter(x=>window.GOOD_DEAL(x));
+  }
+  // map bounds
+  const b = map.getBounds();
+  list = list.filter(x=>b.contains([x.lat,x.lng]));
+  // polygon constraint
+  if(drawnLayer && drawnLayer._latlngs && drawnLayer._latlngs.length){
+    const poly = drawnLayer._latlngs[0].map(ll=>[ll.lat, ll.lng]);
+    list = list.filter(x=>insidePoly([x.lat,x.lng], poly));
+  }
+  render(list);
+  return list;
+}
+function render(list){
+  // clear markers
+  markers.forEach(m=>map.removeLayer(m)); markers=[];
+  // list panel
+  const wrap = document.getElementById('list'); wrap.innerHTML='';
+  list.slice(0,200).forEach(x=>{
+    const m = L.marker([x.lat,x.lng]).addTo(map).bindPopup(`<strong>${x.title||''}</strong><br/>${x.location||''} ${x.province||''}`);
+    markers.push(m);
+    const a = document.createElement('a'); a.className='card-mini'; a.href = 'property.html#'+x.id;
+    a.innerHTML = `<div class="thumb" style="background-image:url('${(x.images&&x.images[0])||x.image||''}')"></div>
+      <div class="body"><div style="font-weight:800">${x.title||''}</div>
+      <div style="color:#64748b;font-size:13px">📍 ${(x.location||'')+(x.province? ' • '+x.province:'')}</div></div>`;
+    wrap.appendChild(a);
+  });
+}
+function init(){
+  // compute GOOD_DEAL medians
+  (function(){
+    function ppsm(x){ return (x.priceSale||x.price||0) && x.area ? ((x.priceSale||x.price)/x.area) : null; }
+    const groups={}; for(const x of (window.LISTINGS||[])){ const k=(x.type||'')+'|'+(x.province||''); (groups[k] ||= []).push(x); }
+    const med={}; for(const [k,arr] of Object.entries(groups)){ const v=arr.map(ppsm).filter(Boolean).sort((a,b)=>a-b); if(v.length){ med[k]= v.length%2? v[(v.length-1)/2] : (v[v.length/2-1]+v[v.length/2])/2; } }
+    window.GOOD_DEAL = function(x){ const k=(x.type||'')+'|'+(x.province||''); const m=med[k]; const v=ppsm(x); if(!m||!v) return false; return v<=m*0.8; };
+  })();
+
+  map = L.map('map').setView([13.7563,100.5018], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap' }).addTo(map);
+
+  const drawControl = new L.Control.Draw({ draw: { circle:false, marker:false, circlemarker:false, rectangle:true, polygon:true, polyline:false } });
+  map.addControl(drawControl);
+  map.on(L.Draw.Event.CREATED, function (e) {
+    if(drawnLayer){ map.removeLayer(drawnLayer); }
+    drawnLayer = e.layer; map.addLayer(drawnLayer); apply();
+  });
+  document.getElementById('resetDraw').onclick = function(){ if(drawnLayer){ map.removeLayer(drawnLayer); drawnLayer=null; apply(); } };
+  document.getElementById('searchArea').onclick = apply;
+  ['q','province','type','goodDeal'].forEach(id=> document.getElementById(id).addEventListener('input', apply));
+  populateSelects(window.LISTINGS||[]);
+  apply();
+}
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body></html>

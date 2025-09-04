@@ -1,0 +1,43 @@
+<!doctype html><html lang="th"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Reports | NationNest</title>
+<link rel="stylesheet" href="../assets/style.css"/>
+</head><body class="theme-luxury">
+<nav class="nav"><div class="container nav-inner">
+  <div class="brand"><img src="../assets/logo.png"/><strong>Reports</strong></div>
+  <a class="btn ghost" href="./index.html">กลับ Admin</a>
+</div></nav>
+<section class="section"><div class="container">
+  <div class="glass">
+    <div class="controls">
+      <input id="csv" placeholder="Leads CSV URL (Publish to web)"/>
+      <button class="btn primary" id="load">โหลด</button>
+      <button class="btn ghost" id="export" disabled>Export CSV</button>
+    </div>
+    <div id="sum" class="meta"></div>
+    <table class="table" style="margin-top:10px"><thead><tr>
+      <th>ทรัพย์</th><th>Leads</th>
+    </tr></thead><tbody id="rows"></tbody></table>
+  </div>
+</div></section>
+<script type="module">
+import Papa from 'https://cdn.jsdelivr.net/npm/papaparse@5.4.1/+esm';
+const csv = document.getElementById('csv'); const rows = document.getElementById('rows'); const sum = document.getElementById('sum');
+document.getElementById('load').onclick = async ()=>{
+  const url = csv.value.trim(); if(!url){ alert('ใส่ URL'); return; }
+  const res = await fetch(url); const txt = await res.text();
+  const parsed = Papa.parse(txt, {header:true}); const data = parsed.data.filter(x=>x.propertyTitle);
+  const byProp = {}; data.forEach(x=>{ byProp[x.propertyTitle] = (byProp[x.propertyTitle]||0) + 1; });
+  rows.innerHTML=''; Object.entries(byProp).forEach(([k,v])=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${k}</td><td>${v}</td>`; rows.appendChild(tr); });
+  sum.textContent = 'Leads รวม: '+data.length+' รายการ'; 
+  document.getElementById('export').disabled=false; window._lead_export = data;
+};
+document.getElementById('export').onclick = ()=>{
+  if(!window._lead_export) return;
+  const csv = Papa.unparse(window._lead_export);
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='leads_export.csv'; a.click(); URL.revokeObjectURL(url);
+};
+</script>
+</body></html>

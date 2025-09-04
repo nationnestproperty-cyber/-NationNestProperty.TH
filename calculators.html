@@ -1,0 +1,98 @@
+<!doctype html><html lang="th"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>คำนวณเงิน | NationNest Property</title>
+<link rel="stylesheet" href="assets/style.css"/>
+</head><body class="theme-luxury">
+<nav class="nav">
+  <div class="container nav-inner">
+    <div class="brand"><img src="assets/logo.svg"/><strong>NationNest Property</strong></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <a class="btn ghost" href="index.html">หน้าแรก</a>
+      <a class="btn ghost" href="listings.html">รายการทรัพย์</a>
+      <a class="btn ghost" href="careers.html">สมัครงาน</a>
+      <a class="btn primary" href="about.html">เกี่ยวกับเรา</a>
+    </div>
+  </div>
+</nav>
+
+<section class="section"><div class="container">
+  <div class="kicker">เครื่องมือการเงิน</div>
+  <h1 class="h1">คำนวณสินเชื่อ & ค่าใช้จ่ายวันโอน</h1>
+
+  <div class="glass" style="margin-bottom:16px">
+    <h3>ค่างวดสินเชื่อ (Mortgage)</h3>
+    <div class="controls">
+      <input id="price" type="number" placeholder="ราคาทรัพย์ (บาท)" value="5000000"/>
+      <input id="downPct" type="number" placeholder="เงินดาวน์ (%)" value="20"/>
+      <input id="rate" type="number" step="0.01" placeholder="ดอกเบี้ยต่อปี (%)" value="6.75"/>
+      <input id="years" type="number" placeholder="ระยะเวลากู้ (ปี)" value="25"/>
+      <button class="btn primary" id="calc1">คำนวณ</button>
+    </div>
+    <div id="out1" class="card"></div>
+  </div>
+
+  <div class="glass" style="margin-bottom:16px">
+    <h3>ประเมินค่าใช้จ่ายวันโอน (ปรับเปอร์เซ็นต์ได้)</h3>
+    <div class="controls">
+      <input id="transferFee" type="number" step="0.01" placeholder="ค่าธรรมเนียมโอน (%)" value="2"/>
+      <input id="taxPct" type="number" step="0.01" placeholder="ภาษี/อากร (%)" value="3.3"/>
+      <input id="other" type="number" step="0.01" placeholder="ค่าอื่น ๆ (%)" value="0.5"/>
+      <button class="btn primary" id="calc2">คำนวณ</button>
+    </div>
+    <div id="out2" class="card"></div>
+    <div class="notice">* อัตราด้านบนเป็นค่าเดโม่ คุณสามารถปรับให้ตรงตามเกณฑ์ล่าสุดได้เอง</div>
+  </div>
+
+  <div class="glass">
+    <h3>เช่า vs ซื้อ</h3>
+    <div class="controls">
+      <input id="rent" type="number" placeholder="ค่าเช่าต่อเดือน (บาท)" value="20000"/>
+      <input id="buyPrice" type="number" placeholder="ราคาซื้อ (บาท)" value="4000000"/>
+      <input id="buyYears" type="number" placeholder="ถือครอง (ปี)" value="7"/>
+      <button class="btn primary" id="calc3">คำนวณ</button>
+    </div>
+    <div id="out3" class="card"></div>
+  </div>
+</div></section>
+
+<footer class="footer"><div class="container">© 2025 NationNest Property</div></footer>
+
+<script>
+const fmt = n => new Intl.NumberFormat('th-TH',{style:'currency',currency:'THB',maximumFractionDigits:0}).format(n);
+
+document.getElementById('calc1').onclick = ()=>{
+  const price = +document.getElementById('price').value||0;
+  const downPct = (+document.getElementById('downPct').value||0)/100;
+  const rate = (+document.getElementById('rate').value||0)/100;
+  const years = +document.getElementById('years').value||0;
+  const loan = price*(1-downPct);
+  const r = rate/12;
+  const n = years*12;
+  const pay = r===0? loan/n : loan*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1);
+  document.getElementById('out1').innerHTML = `
+    <div><b>วงเงินกู้:</b> ${fmt(loan)} • <b>ค่างวด/เดือน:</b> ${fmt(pay)}</div>
+    <div class="meta">รวมจ่ายทั้งสิ้น (ประมาณ): ${fmt(pay*n)}</div>`;
+};
+
+document.getElementById('calc2').onclick = ()=>{
+  const price = +document.getElementById('price').value||0;
+  const transfer = (+document.getElementById('transferFee').value||0)/100 * price;
+  const tax = (+document.getElementById('taxPct').value||0)/100 * price;
+  const other = (+document.getElementById('other').value||0)/100 * price;
+  const total = transfer+tax+other;
+  document.getElementById('out2').innerHTML = `
+    <div><b>ค่าโอน:</b> ${fmt(transfer)} • <b>ภาษี/อากร:</b> ${fmt(tax)} • <b>อื่น ๆ:</b> ${fmt(other)}</div>
+    <div class="meta">รวมประมาณ: ${fmt(total)}</div>`;
+};
+
+document.getElementById('calc3').onclick = ()=>{
+  const rent = +document.getElementById('rent').value||0;
+  const years = +document.getElementById('buyYears').value||0;
+  const buy = +document.getElementById('buyPrice').value||0;
+  const rentTotal = rent*12*years;
+  document.getElementById('out3').innerHTML = `
+    <div><b>ค่าเช่ารวม</b> ${fmt(rentTotal)} ใน ${years} ปี • <b>ราคาซื้อ</b> ${fmt(buy)}</div>
+    <div class="meta">ผลลัพธ์นี้เป็นตัวช่วยเปรียบเทียบเบื้องต้น (ยังไม่รวมโอกาสเติบโต/ค่าเสื่อม/ดอกเบี้ยจริง)</div>`;
+};
+</script>
+<script src="assets/theme.js"></script></body></html>

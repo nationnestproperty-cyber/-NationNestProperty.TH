@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+
+<html lang="th">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>รายละเอียดทรัพย์ | NationNest</title>
+<link href="assets/style.css" rel="stylesheet"/>
+<style>
+  .pd-wrap{max-width:1100px;margin:0 auto;padding:20px}
+  .pd-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:20px}
+  @media(max-width:900px){.pd-grid{grid-template-columns:1fr}}
+  .pd-gallery{position:relative;border-radius:18px;overflow:hidden;border:1px solid #e6e8ec;background:#fff}
+  .pd-gallery .slide{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity .3s}
+  .pd-gallery .slide.active{opacity:1}
+  .pd-gallery .nav{position:absolute;inset:auto 10px 10px auto;display:flex;gap:6px}
+  .pd-box{background:#fff;border:1px solid #e6e8ec;border-radius:16px;padding:16px}
+  .price-box{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .price-item{background:#f7fafc;border:1px solid #e6e8ec;border-radius:12px;padding:12px}
+  .badge{display:inline-block;padding:6px 10px;border-radius:10px;color:#fff;font-weight:700;font-size:12px}
+  .badge.sale{background:#ef476f}.badge.rent{background:#409FFF}.badge.type{background:#1e88e5}
+  .specs{display:flex;gap:12px;flex-wrap:wrap}
+  .spec{display:flex;gap:6px;align-items:center}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .map{height:280px;border-radius:12px;border:1px solid #e6e8ec;background:#f1f5f9;display:grid;place-items:center;color:#6b7280}
+  
+/* Readability overrides */
+.pd-box, .pd-box * { color:#111 !important; }
+.pd-box h1, .pd-box h2, .pd-box h3 { color:#111 !important; }
+.pd-gallery .nav button{ color:#111; }
+</style>
+</head>
+<body class="theme-luxury">
+<nav class="nav">
+<div class="container nav-inner">
+<div class="brand"><a href="index.html" style="text-decoration:none;color:inherit"><strong>NationNest</strong></a></div>
+<div style="display:flex;gap:10px;align-items:center">
+<a class="btn ghost" href="listings.html">รายการทรัพย์</a>
+<a class="btn ghost" href="about.html">เกี่ยวกับเรา</a>
+<a class="btn primary" data-auth="account" href="account.html">บัญชีของฉัน</a>
+<a class="btn ghost" data-auth="login" href="#" onclick="AuthUX.showAuth();return false;">เข้าสู่ระบบ</a>
+</div>
+<a class="btn ghost" href="map.html">แผนที่</a><a class="btn ghost" href="compare.html">เปรียบเทียบ</a></div>
+</nav>
+<main class="pd-wrap">
+<div class="pd-grid">
+<div>
+<div class="pd-gallery" id="gallery"><div style="padding-top:62%"></div></div>
+<div class="pd-box" id="desc"></div>
+</div>
+<div>
+<div class="pd-box">
+<div id="badges" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"></div>
+<h1 id="title" style="margin:.2em 0 .3em;font-size:26px"></h1>
+<div id="loc" style="color:#5b6b7a;margin-bottom:6px"></div>
+<div class="specs" id="specs"></div>
+<div class="price-box" id="prices" style="margin-top:10px"></div>
+<div class="actions">
+<button class="btn-fav" id="favBtn">❤️ บันทึก</button>
+<button class="btn" onclick="openAlertFromCurrent()">🔔 แจ้งเตือนทำเล/ราคา</button>
+<button class="btn primary" id="apptBtn">📅 นัดชม</button>
+</div>
+</div>
+<div class="pd-box">
+<h3 style="margin-top:0">แผนที่โดยสังเขป</h3>
+<div class="map" id="mapBox">กำลังโหลดแผนที่…</div>
+</div>
+</div>
+</div>
+<section class="section"><div class="container">
+<h2 style="margin:0 0 12px">รายการใกล้เคียง</h2>
+<div id="similarGrid" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px"></div>
+</div></section>
+</main>
+<footer class="footer"><div class="container">© 2025 NationNest Property</div></footer>
+<script src="assets/auth.js"></script>
+<script src="data/listings.js"></script>
+<script>
+    function money(n){ if(!n) return '-'; try{return '฿ ' + Number(n).toLocaleString();}catch(e){return n} }
+    function deriveStatus(x){
+      const t = (x.title||'').toLowerCase();
+      const hasRent = t.includes('เช่า') || (x.price && x.price < 100000) || x.priceRent;
+      const hasSale = t.includes('ขาย') || (x.price && x.price >= 100000) || x.priceSale;
+      if(hasRent && hasSale) return 'both';
+      if(hasRent) return 'rent';
+      return 'sale';
+    }
+    function mount(){
+      const id = (location.hash||'').replace('#','') || new URLSearchParams(location.search).get('id');
+      const L = window.LISTINGS||[];
+      const x = L.find(it=>String(it.id)===String(id)) || L[0];
+      if(!x){ document.getElementById('title').textContent='ไม่พบทรัพย์'; return; }
+
+      // Title + Badges
+      document.title = x.title + ' | NationNest';
+      document.getElementById('title').textContent = x.title;
+      const badges = document.getElementById('badges');
+      badges.innerHTML = `<span class="badge type">${x.type||''}</span>`;
+      const status = deriveStatus(x);
+      if(status==='rent' || status==='both') badges.innerHTML += '<span class="badge rent">ให้เช่า</span>';
+      if(status==='sale' || status==='both') badges.innerHTML += '<span class="badge sale">ขาย</span>';
+
+      // Location + specs
+      document.getElementById('loc').textContent = '📍 ' + (x.location||'') + (x.province? (' • '+x.province):'');
+      const specs = document.getElementById('specs');
+      specs.innerHTML = `
+        <div class="spec">พื้นที่ใช้สอย: ${x.area||'-'} ตร.ม.</div>
+        <div class="spec">ชั้น/ชั้น: ${x.floors||x.storeys||'-'}</div>
+        <div class="spec">ห้องนอน: ${x.beds||0}</div>
+        <div class="spec">ห้องน้ำ: ${x.baths||0}</div>`;
+
+      // Prices
+      const prices = document.getElementById('prices');
+      const statusNow = deriveStatus(x);
+      const hasSale = x.priceSale || (statusNow!=='rent' && x.price && x.price >= 100000);
+      const hasRent = x.priceRent || (statusNow!=='sale' && x.price && x.price < 100000);
+      prices.innerHTML = '';
+      if(hasSale){
+        prices.innerHTML += `<div class="price-item"><div style="opacity:.7">ราคาขาย</div><div style="font-size:22px;font-weight:900">${money(x.priceSale||x.price)}</div></div>`;
+      }
+      if(hasRent){
+        prices.innerHTML += `<div class="price-item"><div style="opacity:.7">ราคาเช่า</div><div style="font-size:22px;font-weight:900">${money(x.priceRent||x.price)}</div></div>`;
+      }
+
+      // Description
+      document.getElementById('desc').innerHTML = x.description || 'รายละเอียดเพิ่มเติมกำลังจะมา';
+      // Gallery
+      const gal = document.getElementById('gallery');
+      const imgs = (x.images && x.images.length ? x.images : [ x.image || 'assets/img/placeholder.jpg' ]).filter(Boolean);
+      if(imgs.length===0) imgs.push('assets/img/placeholder.jpg');
+      gal.innerHTML = imgs.map((u,i)=>`<div class="slide ${i===0?'active':''}" style="padding-top:62%;background-image:url('${u}')"></div>`).join('')
+        + `<div class="nav"><button id="gPrev">‹</button><button id="gNext">›</button></div>`;
+      let gi=0; function show(i){ gal.querySelectorAll('.slide').forEach((s,idx)=> s.classList.toggle('active', idx===i)); }
+      document.getElementById('gPrev').onclick = ()=>{ gi=(gi-1+imgs.length)%imgs.length; show(gi); };
+      document.getElementById('gNext').onclick = ()=>{ gi=(gi+1)%imgs.length; show(gi); };
+
+      // Actions
+      const favBtn = document.getElementById('favBtn');
+      const active = AuthUX.isFav(x.id);
+      if(active) favBtn.classList.add('active');
+      favBtn.onclick = ()=> AuthUX.toggleFav(x.id);
+      document.getElementById('apptBtn').onclick = ()=> openAppointment(x.id);
+      // Map embed
+      const mapEl = document.getElementById('mapBox');
+      let q = '';
+      if(x.lat && x.lng){ q = `${x.lat},${x.lng}`; }
+      else { q = (x.location||'') + ' ' + (x.province||''); }
+      const src = 'https://www.google.com/maps?q=' + encodeURIComponent(q) + '&hl=th&z=15&output=embed';
+      mapEl.innerHTML = `<iframe title="แผนที่ทรัพย์" src="${src}" width="100%" height="100%" style="border:0;border-radius:12px" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>`; /*MAP_EMBED*/
+    }
+    function hav(a,b){const R=6371;const d=rad(b.lat-a.lat);const d2=rad(b.lng-a.lng); const la1=rad(a.lat),la2=rad(b.lat); const h=Math.sin(d/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(d2/2)**2; return 2*R*Math.asin(Math.sqrt(h)); function rad(x){return x*Math.PI/180;}}
+function renderSimilar(x){
+  const L = (window.LISTINGS||[]).filter(it=>it.id!==x.id);
+  const here = x.lat && x.lng ? {lat:x.lat,lng:x.lng} : null;
+  const cand = L.filter(it=>it.type===x.type && it.province===x.province && it.area && x.area && Math.abs(it.area-x.area) <= x.area*0.2);
+  const scored = cand.map(it=>{
+    let score = 0;
+    if(here && it.lat && it.lng){ score += Math.max(0, 30 - hav(here,{lat:it.lat,lng:it.lng})); }
+    score += 10 - Math.abs((it.area||0)-(x.area||0))/Math.max(1,x.area);
+    return {it, score};
+  }).sort((a,b)=>b.score-a.score).slice(0,4);
+  const grid = document.getElementById('similarGrid');
+  grid.innerHTML = scored.map(s=>`<a class="card-listing" href="property.html#${s.it.id}" style="border:1px solid #e6e8ec;border-radius:12px;overflow:hidden;text-decoration:none;color:inherit">
+    <div style="padding-top:60%;background:#eee url('${(s.it.images&&s.it.images[0])||s.it.image||""}') center/cover"></div>
+    <div style="padding:10px">
+      <div style="font-weight:800">${s.it.title||''}</div>
+      <div style="color:#64748b;font-size:13px">📍 ${(s.it.location||'')+(s.it.province? ' • '+s.it.province:'')}</div>
+    </div></a>`).join('');
+}
+document.addEventListener('DOMContentLoaded', function(){ mount(); try{ const id=(location.hash||'').replace('#',''); const x=(window.LISTINGS||[]).find(it=>String(it.id)===String(id))||(window.LISTINGS||[])[0]; if(x) renderSimilar(x);}catch(e){} });
+
+  </script>
+</body>
+</html>
